@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>方言文献検索システム</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'メイリオ', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+
+        .search-panel {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .search-mode {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .mode-button {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .mode-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .mode-button.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .search-fields {
+            display: grid;
+            gap: 20px;
+        }
+
+        .search-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .search-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .search-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .search-group label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .search-input, .search-select {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus, .search-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .year-range {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .year-range input {
+            flex: 1;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+
+        .search-button, .clear-button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .search-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .search-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .clear-button {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .clear-button:hover {
+            background: #e0e0e0;
+        }
+
+        .stats {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .export-button {
+            padding: 10px 20px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .export-button:hover {
+            background: #38a169;
+            transform: translateY(-1px);
+        }
+
+        .results-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 768px) {
+            .search-panel, .results-container {
+                padding: 20px;
+            }
+        }
+
+        .result-item {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-item:hover {
+            background: #f8f9fa;
+            padding-left: 25px;
+        }
+
+        .result-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .result-author {
+            color: #667eea;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .result-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .meta-item {
+            font-size: 14px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .meta-label {
+            font-weight: 600;
+        }
+
+        .result-url {
+            margin-top: 10px;
+        }
+
+        .url-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            background: #f0f4ff;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .url-link:hover {
+            background: #667eea;
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .no-results-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: white;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .page-button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            color: #666;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 40px;
+        }
+
+        .page-button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-info {
+            color: #666;
+            font-size: 14px;
+            padding: 0 10px;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c00;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px auto;
+            text-align: center;
+            max-width: 600px;
+        }
+
+        .loading-text {
+            font-size: 18px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        function HougenSearchApp() {
+            const [data, setData] = useState([]);
+            const [filteredData, setFilteredData] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [searchMode, setSearchMode] = useState('simple');
+            const [currentPage, setCurrentPage] = useState(1);
+            const itemsPerPage = 50;
+
+            // 検索フィールドの状態
+            const [searchFields, setSearchFields] = useState({
+                keyword: '',
+                author: '',
+                title: '',
+                yearFrom: '',
+                yearTo: '',
+                venue: '',
+                publisher: '',
+                region: '',
+                subregion: '',
+                topic: '',
+                workType: 'all'
+            });
+
+            // CSVファイルの読み込み
+            useEffect(() => {
+                // CSVファイルのパスを設定（同じディレクトリにある場合）
+                const csvPath = 'hougenbiblio.csv';
+                
+                fetch(csvPath)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.text();
+                    })
+                    .then(csvText => {
+                        // PapaParseでCSVをパース
+                        Papa.parse(csvText, {
+                            header: true,
+                            complete: (results) => {
+                                const validData = results.data.filter(row => row.title);
+                                setData(validData);
+                                setFilteredData(validData);
+                                setLoading(false);
+                            },
+                            error: (error) => {
+                                setError('CSVファイルの解析に失敗しました: ' + error.message);
+                                setLoading(false);
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading CSV:', error);
+                        setError('CSVファイルの読み込みに失敗しました。ファイルが同じディレクトリにあることを確認してください。');
+                        setLoading(false);
+                    });
+            }, []);
+
+            // 検索処理
+            const handleSearch = () => {
+                let results = [...data];
+
+                // キーワード検索（全フィールド対象）
+                if (searchFields.keyword) {
+                    const keyword = searchFields.keyword.toLowerCase();
+                    results = results.filter(item => {
+                        return Object.values(item).some(value => 
+                            value && value.toString().toLowerCase().includes(keyword)
+                        );
+                    });
+                }
+
+                // 個別フィールド検索
+                if (searchFields.author) {
+                    results = results.filter(item => 
+                        item.author && item.author.toLowerCase().includes(searchFields.author.toLowerCase())
+                    );
+                }
+
+                if (searchFields.title) {
+                    results = results.filter(item => 
+                        item.title && item.title.toLowerCase().includes(searchFields.title.toLowerCase())
+                    );
+                }
+
+                if (searchFields.venue) {
+                    results = results.filter(item => 
+                        item.venue && item.venue.toLowerCase().includes(searchFields.venue.toLowerCase())
+                    );
+                }
+
+                if (searchFields.publisher) {
+                    results = results.filter(item => 
+                        item.publisher && item.publisher.toLowerCase().includes(searchFields.publisher.toLowerCase())
+                    );
+                }
+
+                if (searchFields.region) {
+                    results = results.filter(item => 
+                        item.region && item.region.toLowerCase().includes(searchFields.region.toLowerCase())
+                    );
+                }
+
+                if (searchFields.subregion) {
+                    results = results.filter(item => 
+                        item.subregion && item.subregion.toLowerCase().includes(searchFields.subregion.toLowerCase())
+                    );
+                }
+
+                if (searchFields.topic) {
+                    results = results.filter(item => 
+                        item.topic && item.topic.toLowerCase().includes(searchFields.topic.toLowerCase())
+                    );
+                }
+
+                // 年範囲検索
+                if (searchFields.yearFrom) {
+                    results = results.filter(item => 
+                        item.year && parseInt(item.year) >= parseInt(searchFields.yearFrom)
+                    );
+                }
+
+                if (searchFields.yearTo) {
+                    results = results.filter(item => 
+                        item.year && parseInt(item.year) <= parseInt(searchFields.yearTo)
+                    );
+                }
+
+                // 文献タイプフィルタ
+                if (searchFields.workType !== 'all') {
+                    results = results.filter(item => 
+                        item.work_type === searchFields.workType
+                    );
+                }
+
+                setFilteredData(results);
+                setCurrentPage(1);
+            };
+
+            // 検索条件クリア
+            const handleClear = () => {
+                setSearchFields({
+                    keyword: '',
+                    author: '',
+                    title: '',
+                    yearFrom: '',
+                    yearTo: '',
+                    venue: '',
+                    publisher: '',
+                    region: '',
+                    subregion: '',
+                    topic: '',
+                    workType: 'all'
+                });
+                setFilteredData(data);
+                setCurrentPage(1);
+            };
+
+            // ページネーション
+            const paginatedData = useMemo(() => {
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                return filteredData.slice(startIndex, startIndex + itemsPerPage);
+            }, [filteredData, currentPage]);
+
+            const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
+            // CSVエクスポート
+            const handleExport = () => {
+                const csv = Papa.unparse(filteredData);
+                const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `hougen_search_results_${new Date().getTime()}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            if (loading) {
+                return (
+                    <div className="container">
+                        <div className="loading">
+                            <div className="spinner"></div>
+                            <p className="loading-text">データを読み込んでいます...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (error) {
+                return (
+                    <div className="container">
+                        <div className="error-message">
+                            <h2>⚠️ エラーが発生しました</h2>
+                            <p style={{marginTop: '10px'}}>{error}</p>
+                            <p style={{marginTop: '10px', fontSize: '14px'}}>
+                                hougenbiblio.csvファイルがindex.htmlと同じディレクトリにあることを確認してください。
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>📚 方言文献検索システム</h1>
+                        <p>日本全国の方言研究文献を検索できます（全 {data.length} 件）</p>
+                    </div>
+
+                    <div className="search-panel">
+                        <div className="search-mode">
+                            <button 
+                                className={`mode-button ${searchMode === 'simple' ? 'active' : ''}`}
+                                onClick={() => setSearchMode('simple')}
+                            >
+                                🔍 シンプル検索
+                            </button>
+                            <button 
+                                className={`mode-button ${searchMode === 'advanced' ? 'active' : ''}`}
+                                onClick={() => setSearchMode('advanced')}
+                            >
+                                🎯 詳細検索
+                            </button>
+                        </div>
+
+                        <div className="search-fields">
+                            {searchMode === 'simple' ? (
+                                <div className="search-group">
+                                    <label>キーワード検索（全フィールド対象）</label>
+                                    <input
+                                        type="text"
+                                        className="search-input"
+                                        placeholder="検索キーワードを入力..."
+                                        value={searchFields.keyword}
+                                        onChange={(e) => setSearchFields({...searchFields, keyword: e.target.value})}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                    />
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="search-row">
+                                        <div className="search-group">
+                                            <label>著者名</label>
+                                            <input
+                                                type="text"
+                                                className="search-input"
+                                                placeholder="著者名を入力"
+                                                value={searchFields.author}
+                                                onChange={(e) => setSearchFields({...searchFields, author: e.target.value})}
+                                            />
+                                        </div>
+                                        <div className="search-group">
+                                            <label>タイトル</label>
+                                            <input
+                                                type="text"
+                                                className="search-input"
+                                                placeholder="タイトルを入力"
+                                                value={searchFields.title}
+                                                onChange={(e) => setSearchFields({...searchFields, title: e.target.value})}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="search-row">
+                                        <div className="search-group">
+                                            <label>出版年範囲</label>
+                                            <div className="year-range">
+                                                <input
+                                                    type="number"
+                                                    className="search-input"
+                                                    placeholder="開始年"
+                                                    value={searchFields.yearFrom}
+                                                    onChange={(e) => setSearchFields({...searchFields, yearFrom: e.target.value})}
+                                                />
+                                                <span>〜</span>
+                                                <input
+                                                    type="number"
+                                                    className="search-input"
+                                                    placeholder="終了年"
+                                                    value={searchFields.yearTo}
+                                                    onChange={(e) => setSearchFields({...searchFields, yearTo: e.target.value})}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="search-group">
+                                            <label>文献タイプ</label>
+                                            <select 
+                                                className="search-select"
+                                                value={searchFields.workType}
+                                                onChange={(e) => setSearchFields({...searchFields, workType: e.target.value})}
+                                            >
+                                                <option value="all">すべて</option>
+                                                <option value="journal">雑誌論文</option>
+                                                <option value="book">書籍</option>
+                                                <option value="chapter">章・節</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="search-row">
+                                        <div className="search-group">
+                                            <label>掲載誌</label>
+                                            <input
+                                                type="text"
+                                                className="search-input"
+                                                placeholder="掲載誌名を入力"
+                                                value={searchFields.venue}
+                                                onChange={(e) => setSearchFields({...searchFields, venue: e.target.value})}
+                                            />
+                                        </div>
+                                        <div className="search-group">
+                                            <label>出版社</label>
+                                            <input
+                                                type="text"
+                                                className="search-input"
+                                                placeholder="出版社名を入力"
+                                                value={searchFields.publisher}
+                                                onChange={(e) => setSearchFields({...searchFields, publisher: e.target.value})}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="search-row">
+                                        <div className="search-group">
+                                            <label>地域</label>
+                                            <input
+                                                type="text"
+                                                className="search-input"
+                                                placeholder="地域名を入力"
+                                                value={searchFields.region}
+                                                onChange={(e) => setSearchFields({...searchFields, region: e.target.value})}
+                                            />
+                                        </div>
+                                        <div className="search-group">
+                                            <label>下位地域</label>
+                                            <input
+                                                type="text"
+                                                className="search-input"
+                                                placeholder="下位地域名を入力"
+                                                value={searchFields.subregion}
+                                                onChange={(e) => setSearchFields({...searchFields, subregion: e.target.value})}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="search-group">
+                                        <label>トピック・キーワード</label>
+                                        <input
+                                            type="text"
+                                            className="search-input"
+                                            placeholder="トピックやキーワードを入力"
+                                            value={searchFields.topic}
+                                            onChange={(e) => setSearchFields({...searchFields, topic: e.target.value})}
+                                        />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="button-group">
+                            <button className="search-button" onClick={handleSearch}>
+                                🔍 検索
+                            </button>
+                            <button className="clear-button" onClick={handleClear}>
+                                🔄 クリア
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="stats">
+                        <div className="stat-item">
+                            <span className="stat-label">検索結果：</span>
+                            <span className="stat-value">{filteredData.length}</span>
+                            <span className="stat-label">件</span>
+                        </div>
+                        {filteredData.length > 0 && (
+                            <button className="export-button" onClick={handleExport}>
+                                📥 CSVエクスポート
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="results-container">
+                        {paginatedData.length > 0 ? (
+                            <>
+                                {paginatedData.map((item, index) => (
+                                    <div key={index} className="result-item">
+                                        <div className="result-title">{item.title}</div>
+                                        <div className="result-author">{item.author} ({item.year})</div>
+                                        
+                                        <div className="result-meta">
+                                            {item.venue && (
+                                                <div className="meta-item">
+                                                    <span className="meta-label">掲載誌:</span> {item.venue}
+                                                </div>
+                                            )}
+                                            {item.vol_issue && (
+                                                <div className="meta-item">
+                                                    <span className="meta-label">巻号:</span> {item.vol_issue}
+                                                </div>
+                                            )}
+                                            {item.pages && (
+                                                <div className="meta-item">
+                                                    <span className="meta-label">ページ:</span> {item.pages}
+                                                </div>
+                                            )}
+                                            {item.publisher && (
+                                                <div className="meta-item">
+                                                    <span className="meta-label">出版社:</span> {item.publisher}
+                                                </div>
+                                            )}
+                                            {item.work_type && (
+                                                <div className="meta-item">
+                                                    <span className="meta-label">種別:</span> {item.work_type}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {(item.region || item.subregion || item.topic) && (
+                                            <div className="result-meta">
+                                                {item.region && (
+                                                    <div className="meta-item">
+                                                        <span className="meta-label">地域:</span> {item.region}
+                                                    </div>
+                                                )}
+                                                {item.subregion && (
+                                                    <div className="meta-item">
+                                                        <span className="meta-label">下位地域:</span> {item.subregion}
+                                                    </div>
+                                                )}
+                                                {item.topic && (
+                                                    <div className="meta-item">
+                                                        <span className="meta-label">トピック:</span> {item.topic}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {item.url && (
+                                            <div className="result-url">
+                                                <a href={item.url} target="_blank" rel="noopener noreferrer" className="url-link">
+                                                    🔗 リンクを開く
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {totalPages > 1 && (
+                                    <div className="pagination">
+                                        <button 
+                                            className="page-button"
+                                            onClick={() => setCurrentPage(1)}
+                                            disabled={currentPage === 1}
+                                        >
+                                            ≪
+                                        </button>
+                                        <button 
+                                            className="page-button"
+                                            onClick={() => setCurrentPage(currentPage - 1)}
+                                            disabled={currentPage === 1}
+                                        >
+                                            ＜
+                                        </button>
+                                        
+                                        <span className="page-info">
+                                            {currentPage} / {totalPages} ページ
+                                        </span>
+                                        
+                                        <button 
+                                            className="page-button"
+                                            onClick={() => setCurrentPage(currentPage + 1)}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            ＞
+                                        </button>
+                                        <button 
+                                            className="page-button"
+                                            onClick={() => setCurrentPage(totalPages)}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            ≫
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="no-results">
+                                <div className="no-results-icon">📭</div>
+                                <h3>検索結果がありません</h3>
+                                <p>検索条件を変更してお試しください</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<HougenSearchApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
